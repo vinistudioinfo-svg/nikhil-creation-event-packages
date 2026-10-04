@@ -45,7 +45,7 @@ on conflict (item_name) do update set
   active=true,
   updated_at=now();
 
--- Token hash lets a client continue an enquiry/booking without exposing internal data.
+-- Enquiry items exist before a booking is created, so booking_id is nullable until final booking.\nalter table public.nc_booking_items alter column booking_id drop not null;\n\n-- Token hash lets a client continue an enquiry/booking without exposing internal data.
 alter table public.nc_enquiries
   add column if not exists access_token_hash text;
 
