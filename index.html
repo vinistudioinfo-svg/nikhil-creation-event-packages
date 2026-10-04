@@ -23,7 +23,7 @@ h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:10px 0}.sub{color:var(
 .modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:18px;z-index:20}.modal-box{max-width:850px;width:100%;max-height:90vh;overflow:auto;background:#151515;border:1px solid var(--line);border-radius:20px;padding:20px}
 .hidden{display:none!important}
 @media(max-width:800px){.grid,.grid3{grid-template-columns:1fr}.choice-grid,.stats{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.actions{position:sticky;bottom:0;background:#090909ee;padding:10px 0;z-index:4}}
-@media(max-width:520px){.choice-grid,.stats{grid-template-columns:1fr}.wrap{padding:16px 12px 55px}.card,.func{padding:15px}}
+.confirmation-card,.payment-page,.thankyou{max-width:850px;margin:22px auto}.confirmation-card,.thank-card,.upi-pay{background:linear-gradient(145deg,#151515,#0f1115);border:1px solid #4c402b;border-radius:18px;padding:28px;box-shadow:0 18px 50px #0005}.confirm-icon{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#d8b76a;color:#111;font-size:30px;font-weight:800;margin:0 auto 16px}.confirmation-card{text-align:center}.confirmation-card h2{font-family:Georgia,serif;letter-spacing:2px;color:#e5cf9b;margin:0 0 8px}.confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0;text-align:left}.confirm-grid div{padding:14px;border:1px solid #332e25;border-radius:10px;background:#11151a}.confirm-grid span,.payment-summary span,.thank-card b{display:block;color:#8e8e8e;font-size:11px;margin-bottom:5px}.confirm-grid b,.payment-summary b,.thank-card strong{font-size:14px}.payment-page{display:grid;grid-template-columns:1fr 1fr;gap:16px}.payment-summary,.upi-pay{padding:22px;border:1px solid #332e25;border-radius:14px;background:#11151a}.payment-summary{display:grid;gap:6px}.payment-summary strong{font-size:24px;color:#e5cf9b;margin-bottom:8px}.payment-summary .advance{font-size:27px}.upi-pay h3{font-family:Georgia,serif;color:#e5cf9b;letter-spacing:1.5px;margin-top:0}.upi-id{font-size:18px;color:#fff}.pay-btn{display:inline-block;text-decoration:none;margin-top:12px}.thankyou{text-align:center;padding:30px}.thank-card{max-width:520px;margin:22px auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left}.thank-card strong{color:#e5cf9b}.thank-card b{margin:0}@media(max-width:700px){.confirm-grid,.payment-page,.thank-card{grid-template-columns:1fr}}@media(max-width:520px){.choice-grid,.stats{grid-template-columns:1fr}.wrap{padding:16px 12px 55px}.card,.func{padding:15px}}
 @media print{body{background:white;color:#111}.no-print{display:none!important}.wrap{max-width:none;padding:0}.card,.func,.stat{background:white;border:1px solid #bbb;color:#111;box-shadow:none}.muted,.mini,.sub{color:#555}.table th,.table td{border-color:#ccc}}
 </style>
 </head>
@@ -61,7 +61,7 @@ const COST={
 };
 let state={step:0,selected:[],data:{},packageAddons:{},client:{},otp:"",verified:false};
 let adminMode=false;
-const steps=["Verification","Functions","Details","Services","Add-ons","Review"];
+const steps=["Verification","Functions","Details","Services","Add-ons","Review","Confirmation","Payment","Thank You"];
 const $=id=>document.getElementById(id);
 const NC_LOGO_DATA="data:image/jpeg;base64,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";
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN");
@@ -147,14 +147,84 @@ function bindClient(){
    alert("Enquiry saved successfully.");
  });
  $("book")?.addEventListener("click",()=>{
-   saveRecord("Booking");
-   alert("Final booking saved successfully.");
-   state.step=5;persist();render();
+   const id=saveRecord("Booking",{paymentStatus:"Pending"});
+   state.bookingId=id;
+   state.payment={status:"Pending",utr:"",advance:Math.round(total()*0.5)};
+   persist();state.step=6;render();
  });
+ $("confirmationPrint")?.addEventListener("click",clientPrint);
+ $("confirmationWhatsApp")?.addEventListener("click",()=>whatsappBooking());
+ $("toPayment")?.addEventListener("click",()=>{state.step=7;persist();render()});
+ $("paymentBack")?.addEventListener("click",()=>{state.step=6;persist();render()});
+ $("utr")?.addEventListener("input",e=>{state.payment??={};state.payment.utr=e.target.value;persist()});
+ $("paymentWhatsApp")?.addEventListener("click",()=>whatsappPayment());
+ $("paymentSubmit")?.addEventListener("click",()=>{
+   const utr=$("utr")?.value.trim();
+   if(!utr)return alert("Please enter the UTR / transaction ID after payment.");
+   state.payment={...(state.payment||{}),status:"Submitted",utr,advance:Math.round(total()*0.5)};
+   const arr=records(),idx=arr.findIndex(x=>x.id===state.bookingId);
+   if(idx>=0){arr[idx].paymentStatus="Submitted";arr[idx].utr=utr;arr[idx].advanceAmount=state.payment.advance;localStorage.setItem("ncRecords",JSON.stringify(arr))}
+   state.step=8;persist();render();
+ });
+ $("thankPrint")?.addEventListener("click",clientPrint);
+ $("thankWhatsApp")?.addEventListener("click",()=>whatsappBooking());
+}
+function whatsappBooking(){
+ const id=bookingId(),msg="Nikhil Creation - Booking Details\\nBooking ID: "+id+"\\nClient: "+(state.client.name||"")+"\\nEvent: "+state.selected.join(", ")+"\\nPackage Amount: "+money(total())+"\\n\\nYour proposal can be viewed from the booking page. For any queries: 9011515648";
+ window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
+}
+function whatsappPayment(){
+ const id=bookingId(),advance=Math.round(total()*0.5),msg="Nikhil Creation - Payment Details\\nBooking ID: "+id+"\\nFinal Amount: "+money(total())+"\\nAdvance (50%): "+money(advance)+"\\nUPI: nikhilcreation1@ybl\\n\\nPlease share the UTR after payment.";
+ window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
 }
 function render(){if(adminMode)return admin();$('app').innerHTML=stepsBar()+clientView();bindClient();persist();scrollTo({top:0,behavior:"smooth"})}
 function back(){if(state.step>0){state.step--;render()}}
-function clientView(){return [vVerify,vFunctions,vDetails,vServices,vAddons,vReview][state.step]()}
+function clientView(){return [vVerify,vFunctions,vDetails,vServices,vAddons,vReview,vConfirmation,vPayment,vThankYou][state.step]()}
+
+function bookingId(){return state.bookingId||"NC-"+Date.now().toString(36).toUpperCase()}
+function vConfirmation(){
+ const id=bookingId(), amt=total();
+ return `<h1>Booking request received.</h1><p class="sub">Your package has been saved successfully. Your booking is currently <b>Payment Pending</b>.</p>
+ <div class="confirmation-card">
+   <div class="confirm-icon">✓</div><h2>BOOKING REQUEST CONFIRMED</h2>
+   <p>Thank you for choosing <b>Nikhil Creation</b>.</p>
+   <div class="confirm-grid">
+    <div><span>Booking ID</span><b>${esc(id)}</b></div>
+    <div><span>Client</span><b>${esc(state.client.name||"—")}</b></div>
+    <div><span>Event</span><b>${esc(state.selected.join(", ")||"—")}</b></div>
+    <div><span>Package Amount</span><b>${money(amt)}</b></div>
+   </div>
+   <div class="notice">Please complete the advance payment to move the booking from <b>Payment Pending</b> to payment verification.</div>
+ </div>
+ <div class="actions">
+   <button class="btn" id="confirmationPrint">View / Download Proposal</button>
+   <button class="btn" id="confirmationWhatsApp">WhatsApp Details</button>
+   <button class="btn primary" id="toPayment">Proceed to Payment →</button>
+ </div>`;
+}
+function vPayment(){
+ const amt=total(), advance=Math.round(amt*0.5), balance=amt-advance, id=bookingId();
+ const upi="nikhilcreation1@ybl";
+ const upiLink="upi://pay?pa="+encodeURIComponent(upi)+"&pn="+encodeURIComponent("Nikhil Creation")+"&am="+advance+"&cu=INR";
+ return `<h1>Complete your payment.</h1><p class="sub">Pay the advance using PhonePe / any UPI app. Your booking remains payment pending until the transaction is submitted.</p>
+ <div class="payment-page">
+  <div class="payment-summary"><span>Booking ID</span><b>${esc(id)}</b><span>Final Package Amount</span><strong>${money(amt)}</strong><span>Advance Payment (50%)</span><strong class="advance">${money(advance)}</strong><span>Balance After Advance</span><b>${money(balance)}</b></div>
+  <div class="upi-pay"><h3>PAY VIA UPI</h3><p>UPI ID</p><b class="upi-id">${upi}</b><p class="mini">Use PhonePe, Google Pay, Paytm or any UPI app.</p><a class="btn primary pay-btn" href="${upiLink}">Pay ${money(advance)} via UPI</a></div>
+  <div class="field"><label>Transaction / UTR Number</label><input id="utr" value="${esc(state.payment?.utr||"")}" placeholder="Enter UTR / transaction ID after payment"></div>
+  <div class="notice">After payment, enter the UTR and submit it. Our team will verify the transaction and confirm your booking.</div>
+ </div>
+ <div class="actions"><button class="btn ghost" id="paymentBack">← Back</button><button class="btn" id="paymentWhatsApp">WhatsApp Payment Details</button><button class="btn primary" id="paymentSubmit">I've Made the Payment →</button></div>`;
+}
+function vThankYou(){
+ const id=bookingId(), amt=total(), advance=state.payment?.advance||Math.round(amt*0.5);
+ return `<div class="thankyou">
+   <div class="confirm-icon">✓</div><h1>Thank you for choosing Nikhil Creation.</h1>
+   <p>Your payment details have been submitted successfully.</p>
+   <div class="thank-card"><b>Booking ID</b><strong>${esc(id)}</strong><b>Package Amount</b><strong>${money(amt)}</strong><b>Advance Submitted</b><strong>${money(advance)}</strong><b>Status</b><strong>Payment Verification Pending</strong></div>
+   <p class="sub">We will verify your payment and contact you on <b>${esc(state.client.mobile||"your registered mobile")}</b>.</p>
+   <div class="actions"><button class="btn" id="thankPrint">View / Download Proposal</button><button class="btn primary" id="thankWhatsApp">WhatsApp Nikhil</button></div>
+ </div>`;
+}
 function vVerify(){return `<h1>Build your event package.</h1><p class="sub">Verify your details once. Your enquiry can be reopened later without filling everything again.</p>
 <div class="card"><div class="grid"><div class="field"><label>Full Name</label><input id="name" value="${esc(state.client.name)}"></div><div class="field"><label>Mobile</label><input id="mobile" value="${esc(state.client.mobile)}"></div><div class="field"><label>Email</label><input id="email" value="${esc(state.client.email)}"></div></div>
 <div class="actions"><span></span><button class="btn primary" id="send">Send OTP</button></div>
@@ -213,7 +283,11 @@ function clientPrint(){
  if(!w)return alert("Please allow pop-ups to print the package.");
  w.document.open();w.document.write(html);w.document.close();setTimeout(()=>w.print(),700);
 }
-function saveRecord(status){let arr=JSON.parse(localStorage.getItem("ncRecords")||"[]"),id="NC-"+Date.now().toString(36).toUpperCase();arr.push({id,status,createdAt:new Date().toISOString(),client:structuredClone(state.client),selected:structuredClone(state.selected),data:structuredClone(state.data),packageAddons:structuredClone(state.packageAddons),listedTotal:total(),total:total(),internalCost:internalCost()});localStorage.setItem("ncRecords",JSON.stringify(arr))}
+function saveRecord(status,extra={}){
+ let arr=JSON.parse(localStorage.getItem("ncRecords")||"[]"),id=extra.id||"NC-"+Date.now().toString(36).toUpperCase();
+ const record={id,status,createdAt:new Date().toISOString(),client:structuredClone(state.client),selected:structuredClone(state.selected),data:structuredClone(state.data),packageAddons:structuredClone(state.packageAddons),listedTotal:total(),total:total(),internalCost:internalCost(),paymentStatus:extra.paymentStatus||"Pending",advanceAmount:extra.advanceAmount||0,utr:extra.utr||""};
+ arr.push(record);localStorage.setItem("ncRecords",JSON.stringify(arr));return id;
+}
 let adminTab="dashboard";
 function records(){return JSON.parse(localStorage.getItem("ncRecords")||"[]")}
 function recordFinalTotal(x){let listed=0,cost=0;x.selected.forEach(f=>{let d=x.data[f]||{};[...(d.services||[]),...(d.addons||[])].filter(y=>y.qty).forEach(y=>{listed+=y.price*y.qty;cost+=(COST[y.name]||0)*y.qty})});Object.values(x.packageAddons||{}).filter(y=>y.qty).forEach(y=>{listed+=y.price*y.qty;cost+=(COST[y.name]||0)*y.qty});return {listed,cost,final:listed}}
