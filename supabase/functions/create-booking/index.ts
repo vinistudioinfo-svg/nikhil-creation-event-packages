@@ -1,3 +1,9 @@
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 import { withSupabase } from "npm:@supabase/server@1";
 
 const ALLOWED_ORIGINS = new Set([
@@ -12,18 +18,22 @@ export default {
   fetch: withSupabase({ auth: "none" }, async (req, ctx) => {
     const origin = req.headers.get("origin");
     if (origin && !ALLOWED_ORIGINS.has(origin)) {
-      return Response.json({ error: "Origin not allowed" }, { status: 403 });
+      return new Response(JSON.stringify({ error: "Origin not allowed" }), { status: 403, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+    }
+
+    if (req.method === "OPTIONS") {
+      return new Response("ok", { headers: CORS_HEADERS });
     }
 
     if (req.method !== "POST") {
-      return Response.json({ error: "Method not allowed" }, { status: 405 });
+      return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     }
 
     let body: any;
     try {
       body = await req.json();
     } catch {
-      return Response.json({ error: "Invalid JSON" }, { status: 400 });
+      return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     }
 
     const enquiryId = body?.enquiryId;
@@ -31,7 +41,7 @@ export default {
     const advancePercent = Number(body?.advancePercent ?? 50);
 
     if (!enquiryId || typeof accessTokenHash !== "string" || accessTokenHash.length < 32) {
-      return Response.json({ error: "Booking authorization data is incomplete" }, { status: 400 });
+      return new Response(JSON.stringify({ error: "Booking authorization data is incomplete" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     }
 
     try {
@@ -43,13 +53,13 @@ export default {
 
       if (error) {
         console.error("create-booking database error", error.message);
-        return Response.json({ error: error.message }, { status: 400 });
+        return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
       }
 
-      return Response.json({ ok: true, ...data });
+      return new Response(JSON.stringify({ ok: true, ...data }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     } catch (err) {
       console.error("create-booking error", err);
-      return Response.json({ error: "Unable to create booking" }, { status: 500 });
+      return new Response(JSON.stringify({ error: "Unable to create booking" }), { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     }
   }),
 };
