@@ -1,0 +1,7 @@
+# Supabase Edge Function configuration for Nikhil Creation Event Packages
+
+[functions.submit-enquiry]
+verify_jwt = false
+
+[functions.create-booking]
+verify_jwt = false
