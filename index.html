@@ -67,7 +67,98 @@ const NC_LOGO_DATA="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA4KC
 const money=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 function persist(){localStorage.setItem("ncPackage",JSON.stringify(state))}
-function restore(){try{let x=JSON.parse(localStorage.getItem("ncPackage"));if(x&&typeof x==="object"&&Array.isArray(x.selected)&&x.data&&x.client&&typeof x.step==="number"&&x.step>=0&&x.step<=5){state={...state,...x};state.step=Math.min(5,Math.max(0,state.step));}else{localStorage.removeItem("ncPackage");}}catch(e){localStorage.removeItem("ncPackage");}}
+const SUPABASE_URL="https://tborvfqiyehqvzludpns.supabase.co";
+const SUPABASE_FUNCTIONS_URL=SUPABASE_URL+"/functions/v1";
+async function accessTokenHash(){
+  if(!state.accessToken){
+    state.accessToken=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+"-"+Math.random()+"-"+Math.random());
+    persist();
+  }
+  const bytes=new TextEncoder().encode(state.accessToken);
+  const digest=await crypto.subtle.digest("SHA-256",bytes);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function supabasePayload(){
+  const functions=state.selected.map(f=>{
+    const d=state.data[f]||{};
+    const items=[
+      ...(d.services||[]).filter(x=>x.qty).map(x=>({...x,itemType:"service"})),
+      ...(d.addons||[]).filter(x=>x.qty).map(x=>({...x,itemType:"function_addon"}))
+    ];
+    return {
+      functionType:f,
+      customFunctionName:f==="Custom Function"?(d.customName||"Custom Function"):null,
+      eventDate:d.date||"",
+      startTime:d.start||"",
+      endTime:d.end||"",
+      side:d.side||"",
+      venue:d.venue||"",
+      googleMapsUrl:d.map||"",
+      fullAddress:d.address||"",
+      guestCount:d.guests||"",
+      specialRequirements:d.notes||"",
+      items
+    };
+  });
+  const packageAddons=Object.values(state.packageAddons||{})
+    .filter(x=>x.qty)
+    .map(x=>({...x,itemType:"package_addon"}));
+  const album=state.packageAddons?.["Premium Album"];
+  return {
+    client:{
+      fullName:state.client.name||"",
+      mobile:state.client.mobile||"",
+      email:state.client.email||""
+    },
+    functions,
+    packageAddons,
+    album:{
+      selected:!!album,
+      extraPages:album?.extraPages||0
+    }
+  };
+}
+async function submitEnquiryToSupabase(){
+  const accessTokenHash=await accessTokenHash();
+  const payload={...supabasePayload(),accessTokenHash};
+  const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-enquiry",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  let data={};
+  try{data=await res.json()}catch(_){}
+  if(!res.ok||!data.ok)throw new Error(data.error||"Unable to save enquiry to Supabase.");
+  state.enquiryId=data.enquiryId;
+  state.serverEnquiryNumber=data.enquiryNumber;
+  state.serverProposalNumber=data.proposalNumber;
+  state.serverClientTotal=Number(data.clientTotal||total());
+  persist();
+  return data;
+}
+async function createBookingInSupabase(){
+  if(!state.enquiryId)await submitEnquiryToSupabase();
+  const hash=await accessTokenHash();
+  const res=await fetch(SUPABASE_FUNCTIONS_URL+"/create-booking",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      enquiryId:state.enquiryId,
+      accessTokenHash:hash,
+      advancePercent:50
+    })
+  });
+  let data={};
+  try{data=await res.json()}catch(_){}
+  if(!res.ok||!data.ok)throw new Error(data.error||"Unable to create booking.");
+  state.bookingId=data.bookingId;
+  state.bookingNumber=data.bookingNumber;
+  state.payment={status:"Pending",utr:"",advance:Number(data.advanceAmount||Math.round(total()*0.5))};
+  persist();
+  return data;
+}
+
+function restore(){try{let x=JSON.parse(localStorage.getItem("ncPackage"));if(x&&typeof x==="object"&&Array.isArray(x.selected)&&x.data&&x.client&&typeof x.step==="number"&&x.step>=0&&x.step<=8){state={...state,...x};state.step=Math.min(8,Math.max(0,state.step));}else{localStorage.removeItem("ncPackage");}}catch(e){localStorage.removeItem("ncPackage");}}
 function total(){let t=0;state.selected.forEach(f=>{let d=state.data[f]||{};t+=(d.services||[]).reduce((a,x)=>a+x.price*x.qty,0)+(d.addons||[]).reduce((a,x)=>a+x.price*x.qty,0)});t+=Object.values(state.packageAddons).reduce((a,x)=>a+x.price*x.qty+(x.name==="Premium Album"?(x.extraPages||0)*600*x.qty:0),0);return t}
 function internalCost(){let c=0;state.selected.forEach(f=>{let d=state.data[f]||{};[...(d.services||[]),...(d.addons||[])].filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty})});Object.values(state.packageAddons).filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty});return c}
 function finalTotal(){return total()}
@@ -142,15 +233,40 @@ function bindClient(){
  }));
  $("back")?.addEventListener("click",back);
  $("clientPrint")?.addEventListener("click",clientPrint);
- $("enquiry")?.addEventListener("click",()=>{
-   saveRecord("Enquiry");
-   alert("Enquiry saved successfully.");
+ $("enquiry")?.addEventListener("click",async()=>{
+   const btn=$("enquiry"); if(btn)btn.disabled=true;
+   try{
+     const data=await submitEnquiryToSupabase();
+     const id=saveRecord("Enquiry",{id:data.enquiryId});
+     state.enquiryRecordId=id;
+     persist();
+     alert("Enquiry saved successfully.");
+   }catch(e){
+     console.error("Supabase enquiry error:",e);
+     alert(e.message||"Unable to save enquiry. Please try again.");
+   }finally{
+     if(btn)btn.disabled=false;
+   }
  });
- $("book")?.addEventListener("click",()=>{
-   const id=saveRecord("Booking",{paymentStatus:"Pending"});
-   state.bookingId=id;
-   state.payment={status:"Pending",utr:"",advance:Math.round(total()*0.5)};
-   persist();state.step=6;render();
+ $("book")?.addEventListener("click",async()=>{
+   const btn=$("book"); if(btn)btn.disabled=true;
+   try{
+     const data=await createBookingInSupabase();
+     saveRecord("Booking",{
+       id:data.bookingId,
+       paymentStatus:"Pending",
+       advanceAmount:Number(data.advanceAmount||0)
+     });
+     state.bookingId=data.bookingId;
+     state.bookingNumber=data.bookingNumber;
+     state.payment={status:"Pending",utr:"",advance:Number(data.advanceAmount||Math.round(total()*0.5))};
+     persist();state.step=6;render();
+   }catch(e){
+     console.error("Supabase booking error:",e);
+     alert(e.message||"Unable to create booking. Please try again.");
+   }finally{
+     if(btn)btn.disabled=false;
+   }
  });
  $("confirmationPrint")?.addEventListener("click",clientPrint);
  $("confirmationWhatsApp")?.addEventListener("click",()=>whatsappBooking());
@@ -161,7 +277,7 @@ function bindClient(){
  $("paymentSubmit")?.addEventListener("click",()=>{
    const utr=$("utr")?.value.trim();
    if(!utr)return alert("Please enter the UTR / transaction ID after payment.");
-   state.payment={...(state.payment||{}),status:"Submitted",utr,advance:Math.round(total()*0.5)};
+   state.payment={...(state.payment||{}),status:"Submitted",utr,advance:Number(state.payment?.advance||Math.round(total()*0.5))};
    const arr=records(),idx=arr.findIndex(x=>x.id===state.bookingId);
    if(idx>=0){arr[idx].paymentStatus="Submitted";arr[idx].utr=utr;arr[idx].advanceAmount=state.payment.advance;localStorage.setItem("ncRecords",JSON.stringify(arr))}
    state.step=8;persist();render();
