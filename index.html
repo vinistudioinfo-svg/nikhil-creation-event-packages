@@ -124,7 +124,7 @@ async function submitEnquiryToSupabase(){
   const payload={...supabasePayload(),accessTokenHash:tokenHash};
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-enquiry",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},
     body:JSON.stringify(payload)
   });
   let data={};
@@ -142,7 +142,7 @@ async function createBookingInSupabase(){
   const hash=await accessTokenHash();
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/create-booking",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},
     body:JSON.stringify({
       enquiryId:state.enquiryId,
       accessTokenHash:hash,
@@ -159,7 +159,7 @@ async function createBookingInSupabase(){
   return data;
 }
 
-function restore(){try{let x=JSON.parse(localStorage.getItem("ncPackage"));if(x&&typeof x==="object"&&Array.isArray(x.selected)&&x.data&&x.client&&typeof x.step==="number"&&x.step>=0&&x.step<=8){state={...state,...x};state.step=Math.min(8,Math.max(0,state.step));}else{localStorage.removeItem("ncPackage");}}catch(e){localStorage.removeItem("ncPackage");}}
+function restore(){try{if(new URLSearchParams(location.search).get("fresh")==="1"){localStorage.removeItem("ncPackage");return;}let x=JSON.parse(localStorage.getItem("ncPackage"));if(x&&typeof x==="object"&&Array.isArray(x.selected)&&x.data&&x.client&&typeof x.step==="number"&&x.step>=0&&x.step<=8){state={...state,...x};state.step=Math.min(8,Math.max(0,state.step));}else{localStorage.removeItem("ncPackage");}}catch(e){localStorage.removeItem("ncPackage");}}
 function total(){let t=0;state.selected.forEach(f=>{let d=state.data[f]||{};t+=(d.services||[]).reduce((a,x)=>a+x.price*x.qty,0)+(d.addons||[]).reduce((a,x)=>a+x.price*x.qty,0)});t+=Object.values(state.packageAddons).reduce((a,x)=>a+x.price*x.qty+(x.name==="Premium Album"?(x.extraPages||0)*600*x.qty:0),0);return t}
 function internalCost(){let c=0;state.selected.forEach(f=>{let d=state.data[f]||{};[...(d.services||[]),...(d.addons||[])].filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty})});Object.values(state.packageAddons).filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty});return c}
 function finalTotal(){return total()}
