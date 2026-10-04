@@ -72,6 +72,86 @@ function total(){let t=0;state.selected.forEach(f=>{let d=state.data[f]||{};t+=(
 function internalCost(){let c=0;state.selected.forEach(f=>{let d=state.data[f]||{};[...(d.services||[]),...(d.addons||[])].filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty})});Object.values(state.packageAddons).filter(x=>x.qty).forEach(x=>{c+=(COST[x.name]||0)*x.qty});return c}
 function finalTotal(){return total()}
 function stepsBar(){return `<div class="progress no-print">${steps.map((s,i)=>`<div class="step ${i===state.step?"active":""}">${i+1}. ${s}</div>`).join("")}</div>`}
+function bindClient(){
+ const app=$("app");
+ if(!app)return;
+ app.querySelectorAll("#name,#mobile,#email").forEach(el=>el.oninput=()=>{
+   if(el.id==="name")state.client.name=el.value;
+   if(el.id==="mobile")state.client.mobile=el.value;
+   if(el.id==="email")state.client.email=el.value;
+   persist();
+ });
+ $("send")?.addEventListener("click",()=>{
+   state.otp=String(Math.floor(100000+Math.random()*900000));
+   state.client.name=$("name")?.value.trim()||"";
+   state.client.mobile=$("mobile")?.value.trim()||"";
+   state.client.email=$("email")?.value.trim()||"";
+   persist();render();
+ });
+ $("otpBack")?.addEventListener("click",()=>{state.otp="";persist();render()});
+ $("verify")?.addEventListener("click",()=>{
+   const entered=$("otp")?.value.trim();
+   if(entered!==state.otp)return alert("Please enter the correct OTP.");
+   if(!state.client.name||!state.client.mobile||!state.client.email)return alert("Please complete your details first.");
+   state.verified=true;state.step=1;state.otp="";persist();render();
+ });
+ app.querySelectorAll("[data-func]").forEach(b=>b.addEventListener("click",()=>{
+   const f=b.dataset.func;
+   if(state.selected.includes(f)){
+     state.selected=state.selected.filter(x=>x!==f);
+   }else{
+     state.selected.push(f);
+     state.data[f]??={date:"",start:"",end:"",side:"Bride Side",venue:"",map:"",address:"",guests:"",notes:"",services:[],addons:[]};
+   }
+   persist();render();
+ }));
+ $("toDetails")?.addEventListener("click",()=>{if(!state.selected.length)return;state.step=2;persist();render()});
+ $("toServices")?.addEventListener("click",()=>{state.step=3;persist();render()});
+ $("toAddons")?.addEventListener("click",()=>{state.step=4;persist();render()});
+ $("toReview")?.addEventListener("click",()=>{state.step=5;persist();render()});
+ app.querySelectorAll("[data-detail]").forEach(el=>el.addEventListener("input",()=>{
+   const f=el.dataset.f,key=el.dataset.detail;
+   state.data[f]??={services:[],addons:[]};
+   state.data[f][key]=el.value;
+   persist();
+ }));
+ app.querySelectorAll("[data-qty]").forEach(b=>b.addEventListener("click",()=>{
+   const f=b.dataset.f,key=b.dataset.key,name=b.dataset.name;
+   const source=(state.data[f]?.[key]||[]);
+   const existing=source.find(x=>x.name===name);
+   const price=existing?.price ?? SELL[name] ?? Number(b.parentElement?.querySelector(".price")?.textContent?.replace(/[^0-9]/g,"")) ?? 0;
+   setQty(f,key,name,price,b.dataset.qty==="plus"?1:-1);
+   render();
+ }));
+ app.querySelectorAll("[data-pqty]").forEach(b=>b.addEventListener("click",()=>{
+   const name=b.dataset.name,price=Number(b.dataset.price)||SELL[name]||0,delta=b.dataset.pqty==="plus"?1:-1;
+   let x=state.packageAddons[name];
+   if(!x&&delta>0)x={name,price,qty:0,extraPages:0};
+   if(x){
+     x.qty=Math.max(0,x.qty+delta);
+     if(x.qty===0){delete state.packageAddons[name];}
+     else state.packageAddons[name]=x;
+   }
+   persist();render();
+ }));
+ app.querySelectorAll("[data-album-pages]").forEach(b=>b.addEventListener("click",()=>{
+   const x=state.packageAddons["Premium Album"];
+   if(!x||!x.qty)return;
+   x.extraPages=Math.max(0,(x.extraPages||0)+(b.dataset.albumPages==="plus"?1:-1));
+   persist();render();
+ }));
+ $("back")?.addEventListener("click",back);
+ $("clientPrint")?.addEventListener("click",clientPrint);
+ $("enquiry")?.addEventListener("click",()=>{
+   saveRecord("Enquiry");
+   alert("Enquiry saved successfully.");
+ });
+ $("book")?.addEventListener("click",()=>{
+   saveRecord("Booking");
+   alert("Final booking saved successfully.");
+   state.step=5;persist();render();
+ });
+}
 function render(){if(adminMode)return admin();$('app').innerHTML=stepsBar()+clientView();bindClient();persist();scrollTo({top:0,behavior:"smooth"})}
 function back(){if(state.step>0){state.step--;render()}}
 function clientView(){return [vVerify,vFunctions,vDetails,vServices,vAddons,vReview][state.step]()}
