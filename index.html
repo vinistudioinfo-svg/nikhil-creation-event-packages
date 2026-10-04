@@ -68,6 +68,7 @@ const money=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 function persist(){localStorage.setItem("ncPackage",JSON.stringify(state))}
 const SUPABASE_URL="https://tborvfqiyehqvzludpns.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_DdgBJYcShkAw6Xa_8XNLGA_drhjY5x3";
 const SUPABASE_FUNCTIONS_URL=SUPABASE_URL+"/functions/v1";
 async function accessTokenHash(){
   if(!state.accessToken){
