@@ -1,3 +1,9 @@
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 import { withSupabase } from "npm:@supabase/server@1";
 
 const ALLOWED_ORIGINS = new Set([
@@ -9,7 +15,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 function response(body: unknown, status = 200) {
-  return Response.json(body, { status });
+  return new Response(JSON.stringify(body), { status, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
 }
 
 export default {
@@ -19,6 +25,7 @@ export default {
       return response({ error: "Origin not allowed" }, 403);
     }
 
+    if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
     if (req.method !== "POST") return response({ error: "Method not allowed" }, 405);
 
     let payload: any;
