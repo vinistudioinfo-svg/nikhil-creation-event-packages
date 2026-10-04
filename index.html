@@ -123,7 +123,7 @@ async function submitEnquiryToSupabase(){
   const payload={...supabasePayload(),accessTokenHash:tokenHash};
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-enquiry",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY},
     body:JSON.stringify(payload)
   });
   let data={};
@@ -141,7 +141,7 @@ async function createBookingInSupabase(){
   const hash=await accessTokenHash();
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/create-booking",{
     method:"POST",
-    headers:{"Content-Type":"application/json"},
+    headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":"Bearer "+SUPABASE_PUBLISHABLE_KEY},
     body:JSON.stringify({
       enquiryId:state.enquiryId,
       accessTokenHash:hash,
