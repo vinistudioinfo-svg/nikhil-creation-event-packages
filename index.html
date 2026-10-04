@@ -119,8 +119,8 @@ function supabasePayload(){
   };
 }
 async function submitEnquiryToSupabase(){
-  const accessTokenHash=await accessTokenHash();
-  const payload={...supabasePayload(),accessTokenHash};
+  const tokenHash=await accessTokenHash();
+  const payload={...supabasePayload(),accessTokenHash:tokenHash};
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-enquiry",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
