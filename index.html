@@ -303,17 +303,17 @@ function bindClient(){
 }
 function whatsappBooking(){
  const id=bookingId(),amt=total(),paid=Number(state.payment?.paidAmount||0),balance=Math.max(0,amt-paid);
- const msg="Nikhil Creation | Booking Summary\n\n"+
+ const msg="Nikhil Creation | Booking Confirmation\n\n"+
  "Booking ID: "+id+"\n"+
  "Client: "+(state.client.name||"—")+"\n"+
- "Event / Functions: "+(state.selected.join(", ")||"—")+"\n"+
+ "Functions: "+(state.selected.join(", ")||"—")+"\n\n"+
  "Package Amount: "+money(amt)+"\n"+
  "Amount Paid: "+money(paid)+"\n"+
  "Remaining Balance: "+money(balance)+"\n"+
  "Payment Status: "+(state.payment?.status==="Submitted"?"Payment Submitted":"Payment Pending")+"\n\n"+
- "Your proposal is available on the booking page.\n"+
- "For bookings & enquiries: 9011515648\n"+
- "Nikhil Creation";
+ "Your booking details and proposal are available on the booking page.\n\n"+
+ "Thank you for choosing Nikhil Creation.\n"+
+ "For bookings & enquiries: 9011515648";
  window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
 }
 function whatsappPayment(){
