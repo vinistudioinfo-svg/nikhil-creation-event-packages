@@ -293,6 +293,20 @@ function bindClient(){
    if(!Number.isFinite(paid)||paid<0||paid>amt)return alert("Please enter a valid Amount Paid between ₹0 and the final package amount.");
    if(!utr)return alert("Please enter the UTR / transaction ID after payment.");
    state.payment={...(state.payment||{}),status:"Submitted",utr,paidAmount:paid,advance:paid,balance:Math.max(0,amt-paid)};
+   try{
+     const hash=await accessTokenHash();
+     const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-payment?fresh=1",{
+       method:"POST",
+       headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},
+       body:JSON.stringify({bookingId:state.bookingId,accessTokenHash:hash,amountPaid:paid,utr})
+     });
+     let data={}; try{data=await res.json()}catch(_){}
+     if(!res.ok||!data.ok) throw new Error(data.error||"Unable to save payment.");
+     state.payment.paymentId=data.paymentId;
+   }catch(e){
+     console.error("Supabase payment error:",e);
+     return alert(e.message||"Unable to save payment. Please try again.");
+   }
    const arr=records(),idx=arr.findIndex(x=>x.id===state.bookingId);
    if(idx>=0){arr[idx].paymentStatus="Submitted";arr[idx].utr=utr;arr[idx].advanceAmount=paid;arr[idx].amountPaid=paid;arr[idx].remainingBalance=Math.max(0,amt-paid);localStorage.setItem("ncRecords",JSON.stringify(arr))}
    state.step=8;persist();render();
