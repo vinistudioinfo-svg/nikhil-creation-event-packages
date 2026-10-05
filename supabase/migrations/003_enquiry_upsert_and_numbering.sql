@@ -3,6 +3,10 @@
 -- Reuse the same enquiry ID when the package is edited.
 -- Client-facing enquiry/booking numbers start from 01.
 
+alter table public.nc_booking_items add column if not exists enquiry_id uuid;
+
+create index if not exists nc_booking_items_enquiry_id_idx on public.nc_booking_items(enquiry_id);
+
 create sequence if not exists public.nc_client_reference_seq;
 
 do $$
@@ -102,17 +106,8 @@ begin
     -- The enquiry has not yet become a booking in the normal client flow.
     -- Remove old package details so the edited package is rebuilt atomically.
     delete from public.nc_booking_items
-    where function_id in (
-      select id from public.nc_functions where enquiry_id = v_enquiry_id
-    )
-    or (
-      function_id is null
-      and booking_id is null
-      and exists (
-        select 1 from public.nc_enquiries e
-        where e.id = v_enquiry_id
-      )
-    );
+    where enquiry_id = v_enquiry_id
+      and booking_id is null;
 
     delete from public.nc_albums
     where enquiry_id = v_enquiry_id;
@@ -191,11 +186,11 @@ begin
       v_cost := v_cost + (v_price.internal_cost * v_qty);
 
       insert into public.nc_booking_items(
-        booking_id,function_id,item_type,item_name,quantity,
+        enquiry_id,booking_id,function_id,item_type,item_name,quantity,
         client_unit_price,internal_unit_cost,client_total,internal_total
       )
       values (
-        null,v_function_id,v_price.item_type,v_price.item_name,v_qty,
+        v_enquiry_id,null,v_function_id,v_price.item_type,v_price.item_name,v_qty,
         v_price.client_price,v_price.internal_cost,
         v_price.client_price*v_qty,v_price.internal_cost*v_qty
       );
@@ -234,11 +229,11 @@ begin
     v_cost := v_cost + (v_price.internal_cost * v_qty);
 
     insert into public.nc_booking_items(
-      booking_id,function_id,item_type,item_name,quantity,
+      enquiry_id,booking_id,function_id,item_type,item_name,quantity,
       client_unit_price,internal_unit_cost,client_total,internal_total
     )
     values (
-      null,null,v_price.item_type,v_price.item_name,v_qty,
+      v_enquiry_id,null,null,v_price.item_type,v_price.item_name,v_qty,
       v_price.client_price,v_price.internal_cost,
       v_price.client_price*v_qty,v_price.internal_cost*v_qty
     );
@@ -381,20 +376,8 @@ begin
 
   update public.nc_booking_items
   set booking_id=v_booking_id
-  where function_id in (
-    select id from public.nc_functions where enquiry_id=e.id
-  )
-  and booking_id is null;
-
-  update public.nc_booking_items
-  set booking_id=v_booking_id
-  where function_id is null
-    and booking_id is null
-    and id in (
-      select bi.id
-      from public.nc_booking_items bi
-      where bi.function_id is null
-    );
+  where enquiry_id=e.id
+    and booking_id is null;
 
   update public.nc_enquiries
   set status='Booking Created',updated_at=now()
