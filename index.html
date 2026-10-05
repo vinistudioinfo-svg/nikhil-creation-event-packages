@@ -300,6 +300,7 @@ function bindClient(){
  $("thankBack")?.addEventListener("click",()=>{state.step=7;persist();render()});
  $("thankPrint")?.addEventListener("click",clientPrint);
  $("thankWhatsApp")?.addEventListener("click",()=>whatsappBooking());
+}
 function whatsappBooking(){
  const id=bookingId(),msg="Nikhil Creation - Booking Details\\nBooking ID: "+id+"\\nClient: "+(state.client.name||"")+"\\nEvent: "+state.selected.join(", ")+"\\nPackage Amount: "+money(total())+"\\n\\nYour proposal can be viewed from the booking page. For any queries: 9011515648";
  window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
