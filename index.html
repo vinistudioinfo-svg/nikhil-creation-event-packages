@@ -120,8 +120,20 @@ function supabasePayload(){
   };
 }
 async function submitEnquiryToSupabase(){
+  const payload={...supabasePayload()};
+  const snapshot=JSON.stringify(payload);
+  if(state.enquiryId&&state.enquirySnapshot===snapshot){
+    return {
+      ok:true,
+      enquiryId:state.enquiryId,
+      enquiryNumber:state.serverEnquiryNumber,
+      proposalNumber:state.serverProposalNumber,
+      clientTotal:state.serverClientTotal||total(),
+      unchanged:true
+    };
+  }
   const tokenHash=await accessTokenHash();
-  const payload={...supabasePayload(),accessTokenHash:tokenHash};
+  payload.accessTokenHash=tokenHash;
   const res=await fetch(SUPABASE_FUNCTIONS_URL+"/submit-enquiry",{
     method:"POST",
     headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},
@@ -134,6 +146,7 @@ async function submitEnquiryToSupabase(){
   state.serverEnquiryNumber=data.enquiryNumber;
   state.serverProposalNumber=data.proposalNumber;
   state.serverClientTotal=Number(data.clientTotal||total());
+  state.enquirySnapshot=snapshot;
   persist();
   return data;
 }
@@ -238,10 +251,16 @@ function bindClient(){
    const btn=$("enquiry"); if(btn)btn.disabled=true;
    try{
      const data=await submitEnquiryToSupabase();
-     const id=saveRecord("Enquiry",{id:data.enquiryId});
+     const id=saveRecord("Enquiry",{
+       id:data.enquiryNumber,
+       enquiryId:data.enquiryId,
+       enquiryNumber:data.enquiryNumber
+     });
      state.enquiryRecordId=id;
      persist();
-     alert("Enquiry saved successfully.");
+     alert(data.unchanged
+       ? "No changes detected. Your existing enquiry has not been duplicated."
+       : (data.updated ? "Enquiry updated successfully." : "Enquiry saved successfully."));
    }catch(e){
      console.error("Supabase enquiry error:",e);
      alert(e.message||"Unable to save enquiry. Please try again.");
@@ -258,9 +277,13 @@ function bindClient(){
      }
      const data=await createBookingInSupabase();
      saveRecord("Booking",{
-       id:data.bookingId,
+       id:state.serverEnquiryNumber||state.enquiryId,
+       enquiryId:state.enquiryId,
+       enquiryNumber:state.serverEnquiryNumber,
        paymentStatus:"Pending",
-       advanceAmount:Number(data.advanceAmount||0)
+       advanceAmount:Number(data.advanceAmount||0),
+       amountPaid:Number(state.payment?.paidAmount||0),
+       remainingBalance:Number(data.balanceAmount||0)
      });
      state.bookingId=data.bookingId;
      state.bookingNumber=data.bookingNumber;
@@ -472,9 +495,35 @@ function clientPrint(){
  w.document.open();w.document.write(html);w.document.close();setTimeout(()=>w.print(),700);
 }
 function saveRecord(status,extra={}){
- let arr=JSON.parse(localStorage.getItem("ncRecords")||"[]"),id=extra.id||"NC-"+Date.now().toString(36).toUpperCase();
- const record={id,status,createdAt:new Date().toISOString(),client:structuredClone(state.client),selected:structuredClone(state.selected),data:structuredClone(state.data),packageAddons:structuredClone(state.packageAddons),listedTotal:total(),total:total(),internalCost:internalCost(),paymentStatus:extra.paymentStatus||"Pending",advanceAmount:extra.advanceAmount||0,utr:extra.utr||""};
- arr.push(record);localStorage.setItem("ncRecords",JSON.stringify(arr));return id;
+ let arr=JSON.parse(localStorage.getItem("ncRecords")||"[]");
+ const id=extra.id||state.serverEnquiryNumber||state.enquiryId||"NC-"+Date.now().toString(36).toUpperCase();
+ const existingIndex=arr.findIndex(x=>x.id===id||x.enquiryId===state.enquiryId);
+ const previous=existingIndex>=0?arr[existingIndex]:{};
+ const record={
+   ...previous,
+   id,
+   enquiryId:extra.enquiryId||state.enquiryId||previous.enquiryId||"",
+   enquiryNumber:extra.enquiryNumber||state.serverEnquiryNumber||previous.enquiryNumber||id,
+   status,
+   createdAt:previous.createdAt||new Date().toISOString(),
+   updatedAt:new Date().toISOString(),
+   client:structuredClone(state.client),
+   selected:structuredClone(state.selected),
+   data:structuredClone(state.data),
+   packageAddons:structuredClone(state.packageAddons),
+   listedTotal:total(),
+   total:total(),
+   internalCost:internalCost(),
+   paymentStatus:extra.paymentStatus??previous.paymentStatus??"Pending",
+   advanceAmount:extra.advanceAmount??previous.advanceAmount??0,
+   amountPaid:extra.amountPaid??previous.amountPaid??previous.advanceAmount??0,
+   remainingBalance:extra.remainingBalance??previous.remainingBalance??Math.max(0,total()-Number(previous.amountPaid??previous.advanceAmount??0)),
+   utr:extra.utr??previous.utr??""
+ };
+ if(existingIndex>=0) arr[existingIndex]=record;
+ else arr.push(record);
+ localStorage.setItem("ncRecords",JSON.stringify(arr));
+ return id;
 }
 let adminTab="dashboard";
 function records(){return JSON.parse(localStorage.getItem("ncRecords")||"[]")}
