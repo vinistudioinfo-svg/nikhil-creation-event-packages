@@ -302,14 +302,49 @@ function bindClient(){
  $("thankWhatsApp")?.addEventListener("click",()=>whatsappBooking());
 }
 function whatsappBooking(){
- const id=bookingId(),msg="Nikhil Creation - Booking Details\\nBooking ID: "+id+"\\nClient: "+(state.client.name||"")+"\\nEvent: "+state.selected.join(", ")+"\\nPackage Amount: "+money(total())+"\\n\\nYour proposal can be viewed from the booking page. For any queries: 9011515648";
+ const id=bookingId(),amt=total(),paid=Number(state.payment?.paidAmount||0),balance=Math.max(0,amt-paid);
+ const msg="Nikhil Creation | Booking Summary\n\n"+
+ "Booking ID: "+id+"\n"+
+ "Client: "+(state.client.name||"—")+"\n"+
+ "Event / Functions: "+(state.selected.join(", ")||"—")+"\n"+
+ "Package Amount: "+money(amt)+"\n"+
+ "Amount Paid: "+money(paid)+"\n"+
+ "Remaining Balance: "+money(balance)+"\n"+
+ "Payment Status: "+(state.payment?.status==="Submitted"?"Payment Submitted":"Payment Pending")+"\n\n"+
+ "Your proposal is available on the booking page.\n"+
+ "For bookings & enquiries: 9011515648\n"+
+ "Nikhil Creation";
  window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
 }
 function whatsappPayment(){
- const id=bookingId(),paid=Number(state.payment?.paidAmount||Math.round(total()*0.5)),balance=Math.max(0,total()-paid),msg="Nikhil Creation - Payment Details\\nBooking ID: "+id+"\\nFinal Amount: "+money(total())+"\\nAmount Paid: "+money(paid)+"\\nRemaining Balance: "+money(balance)+"\\nUPI: nikhilcreation1@ybl\\n\\nPlease share the UTR after payment."; 
+ const id=bookingId(),amt=total(),paid=Number(state.payment?.paidAmount||0),balance=Math.max(0,amt-paid),utr=(state.payment?.utr||"").trim();
+ const msg="Nikhil Creation | Payment Details\n\n"+
+ "Booking ID: "+id+"\n"+
+ "Final Package Amount: "+money(amt)+"\n"+
+ "Amount Paid: "+money(paid)+"\n"+
+ "Remaining Balance: "+money(balance)+"\n"+
+ "Payment Status: "+(state.payment?.status==="Submitted"?"Payment Submitted":"Payment Pending")+"\n"+
+ (utr?"UTR / Transaction ID: "+utr+"\n":"")+
+ "UPI ID: nikhilcreation1@ybl\n\n"+
+ "Thank you for choosing Nikhil Creation.\n"+
+ "For payment verification & queries: 9011515648";
  window.open("https://wa.me/919011515648?text="+encodeURIComponent(msg),"_blank");
 }
-function render(){if(adminMode)return admin();$('app').innerHTML=stepsBar()+clientView();bindClient();persist();scrollTo({top:0,behavior:"smooth"})}
+let lastRenderedStep=-1;
+function render(){
+ if(adminMode)return admin();
+ const previousStep=lastRenderedStep;
+ const currentScroll=window.scrollY||window.pageYOffset||0;
+ const stepChanged=previousStep!==state.step;
+ $('app').innerHTML=stepsBar()+clientView();
+ bindClient();
+ persist();
+ lastRenderedStep=state.step;
+ requestAnimationFrame(()=>{
+   if(stepChanged) window.scrollTo({top:0,behavior:"smooth"});
+   else window.scrollTo({top:currentScroll,behavior:"auto"});
+ });
+}
 function back(){if(state.step>0){state.step--;render()}}
 function clientView(){return [vVerify,vFunctions,vDetails,vServices,vAddons,vReview,vConfirmation,vPayment,vThankYou][state.step]()}
 
