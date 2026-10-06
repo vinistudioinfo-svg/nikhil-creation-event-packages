@@ -63,7 +63,7 @@ const COST={
 "Extra Hours":1000,"Extra Photographer":5000,"Extra Videographer":5500,"Reels Pack":1000,"Professional Female Photographer":6000,
 "Premium Album":10500,"Highlight Film":9000,"Teaser Film":3000,"LED Wall / Live Screening":10000
 };
-let state={step:0,selected:[],data:{},packageAddons:{},client:{},otp:"",otpSentAt:0,otpPhone:"",verified:false};
+let state={step:0,selected:[],data:{},packageAddons:{},client:{},otp:"",otpSentAt:0,otpPhone:"",otpSessionId:"",verified:false};
 let otpTimer=null;
 let adminMode=false;
 const steps=["Verification","Functions","Details","Services","Add-ons","Review","Confirmation","Payment","Thank You"];
@@ -198,30 +198,36 @@ function bindClient(){
    if(state.client.name.length<2)return alert("Please enter your full name.");
    if(!/^[6-9]\\d{9}$/.test(state.client.mobile))return alert("Please enter a valid 10-digit Indian mobile number.");
    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(state.client.email))return alert("Please enter a valid email address.");
-   const phone="+91"+state.client.mobile;
-   const {error}=await supabaseClient.auth.signInWithOtp({phone});
-   if(error)return alert("OTP could not be sent: "+error.message);
+   const phone=state.client.mobile;
+   const response=await fetch(SUPABASE_FUNCTIONS_URL+"/send-otp",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({phone})});
+   let result={};try{result=await response.json()}catch{}
+   if(!response.ok||!result.success||!result.sessionId)return alert(result.error||"OTP could not be sent. Please try again.");
    state.otp="sent";
    state.otpPhone=phone;
+   state.otpSessionId=result.sessionId;
    state.otpSentAt=Date.now();
    persist();render();
  });
- $("otpBack")?.addEventListener("click",()=>{state.otp="";state.otpSentAt=0;persist();render()});
+ $("otpBack")?.addEventListener("click",()=>{state.otp="";state.otpSentAt=0;state.otpSessionId="";persist();render()});
  $("resendOtp")?.addEventListener("click",async()=>{
    const elapsed=Date.now()-(state.otpSentAt||0);
    if(elapsed<60000)return alert("Please wait until the 60-second timer finishes.");
-   const {error}=await supabaseClient.auth.signInWithOtp({phone:state.otpPhone});
-   if(error)return alert("OTP could not be resent: "+error.message);
+   const phone=state.otpPhone||state.client.mobile;
+   const response=await fetch(SUPABASE_FUNCTIONS_URL+"/send-otp",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({phone})});
+   let result={};try{result=await response.json()}catch{}
+   if(!response.ok||!result.success||!result.sessionId)return alert(result.error||"OTP could not be resent. Please try again.");
+   state.otpSessionId=result.sessionId;
    state.otpSentAt=Date.now();persist();render();
  });
  $("verify")?.addEventListener("click",async()=>{
    const entered=$("otp")?.value.trim()||"";
-   if(!/^\\d{6}$/.test(entered))return alert("Please enter the 6-digit OTP.");
-   const phone=state.otpPhone||("+91"+String(state.client.mobile||"").replace(/\\D/g,""));
-   const {error}=await supabaseClient.auth.verifyOtp({phone,token:entered,type:"sms"});
-   if(error)return alert("Invalid or expired OTP. Please try again.");
+   if(!/^\d{6}$/.test(entered))return alert("Please enter the 6-digit OTP.");
+   if(!state.otpSessionId)return alert("Please request a new OTP first.");
+   const response=await fetch(SUPABASE_FUNCTIONS_URL+"/verify-otp",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({sessionId:state.otpSessionId,otp:entered})});
+   let result={};try{result=await response.json()}catch{}
+   if(!response.ok||!result.verified)return alert(result.error||"Invalid or expired OTP. Please try again.");
    if(!state.client.name||!state.client.mobile||!state.client.email)return alert("Please complete your details first.");
-   state.verified=true;state.otp="";state.otpSentAt=0;state.otpPhone=phone;persist();render();
+   state.verified=true;state.otp="";state.otpSentAt=0;state.otpSessionId="";persist();render();
  });
  app.querySelectorAll("[data-func]").forEach(b=>b.addEventListener("click",()=>{
    const f=b.dataset.func;
